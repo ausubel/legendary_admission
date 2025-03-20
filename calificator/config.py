@@ -1,4 +1,4 @@
-# Define the structure of the exam based on the images
+# Exam structure 
 EXAM_STRUCTURE = {
     "Matemática": {
         "start": 0,  # 0-indexed (corresponds to PREG_001 to PREG_020)

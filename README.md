@@ -14,6 +14,7 @@ legendary_admision/
 │   ├── data/questions/  # Questions
 │   ├── output/          # Generated exams and answer keys
 │   └── main.py          # Main exam generation script
+├── gui.py               # Graphical User Interface (GUI)
 └── requirements.txt     # Project dependencies
 ```
 
@@ -46,7 +47,19 @@ Exams are divided into sections with different weights for each career path:
 
 ## Usage
 
-### Running the Grading System
+### Using the Graphical User Interface (GUI)
+
+```bash
+python gui.py
+```
+
+This will launch a user-friendly GUI with two main options:
+- **Ejecutar Generador**: Runs the exam generator
+- **Ejecutar Calificador**: Runs the exam grading system
+
+The GUI provides a convenient way to access both functionalities without having to use the command line.
+
+### Running the Grading System Directly
 
 ```bash
 python calificator/main.py

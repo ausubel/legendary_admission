@@ -7,7 +7,7 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from score_calculator import calculate_vigesimal_score
 
-def generate_pdf_report(results_df, output_path):
+def generate_pdf_report(results_df, output_path, student_ids=None):
     """Generate a PDF report with the results"""
     doc = SimpleDocTemplate(output_path, pagesize=letter)
     styles = getSampleStyleSheet()
@@ -76,7 +76,7 @@ def generate_pdf_report(results_df, output_path):
                 elements.append(Spacer(1, 6))
                 
                 # Create table data for this career group
-                data = [["Estudiante", "Puntaje", "Nota (20)"]]
+                data = [["DNI", "Puntaje", "Nota (20)"]]
                 
                 # Sort by score in descending order
                 career_students = career_students.sort_values(by='puntaje_total', ascending=False)
@@ -85,9 +85,22 @@ def generate_pdf_report(results_df, output_path):
                 for i, (_, row) in enumerate(career_students.iterrows()):
                     if i >= 50:  # Limit to first 50 students per career
                         break
+                    
+                    # Get student code and DNI
+                    student_code = str(row['codigo_estudiante'])
+                    student_dni = str(row.get('dni_estudiante', ''))
+                    
+                    # If DNI is not in the row data but we have student_ids dictionary, try to get it from there
+                    if (not student_dni or student_dni == 'nan') and student_ids and student_code in student_ids:
+                        student_dni = student_ids[student_code]
+                    
+                    # If still no DNI, use the student code
+                    if not student_dni or student_dni == 'nan':
+                        student_dni = student_code
+                    
                     # Calculate the vigesimal score
                     vigesimal_score = calculate_vigesimal_score(row['puntaje_total'])
-                    data.append([str(row['codigo_estudiante']), str(row['puntaje_total']), str(vigesimal_score)])
+                    data.append([student_dni, str(row['puntaje_total']), str(vigesimal_score)])
                 
                 # Create table for this career
                 table = Table(data, colWidths=[1.5*inch, 1*inch, 1*inch])
@@ -115,13 +128,26 @@ def generate_pdf_report(results_df, output_path):
         elements.append(Spacer(1, 6))
         
         # Create table data - limit to first 100 students to avoid memory issues
-        data = [["Estudiante", "Puntaje", "Nota (20)"]]
+        data = [["DNI", "Puntaje", "Nota (20)"]]
         for i, (_, row) in enumerate(results_df.iterrows()):
             if i >= 100:  # Limit to first 100 students
                 break
+            
+            # Get student code and DNI
+            student_code = str(row['codigo_estudiante'])
+            student_dni = str(row.get('dni_estudiante', ''))
+            
+            # If DNI is not in the row data but we have student_ids dictionary, try to get it from there
+            if (not student_dni or student_dni == 'nan') and student_ids and student_code in student_ids:
+                student_dni = student_ids[student_code]
+            
+            # If still no DNI, use the student code
+            if not student_dni or student_dni == 'nan':
+                student_dni = student_code
+            
             # Calculate the vigesimal score
             vigesimal_score = calculate_vigesimal_score(row['puntajes_correctos'])
-            data.append([str(row['codigo_estudiante']), str(row['puntajes_correctos']), str(vigesimal_score)])
+            data.append([student_dni, str(row['puntajes_correctos']), str(vigesimal_score)])
         
         # Create table
         table = Table(data, colWidths=[1.5*inch, 1*inch, 1*inch])
@@ -157,11 +183,11 @@ def display_results_table(results_df):
     """Display the results in a formatted table"""
     if results_df is not None and not results_df.empty:
         print("\nResultados Finales:")
-        print("+" + "-" * 30 + "+" + "-" * 20 + "+")
-        print("|" + "codigo_estudiante".center(30) + "|" + "puntajes_correctos".center(20) + "|")
-        print("+" + "-" * 30 + "+" + "-" * 20 + "+")
+        print("+" + "-" * 30 + "+" + "-" * 30 + "+" + "-" * 20 + "+")
+        print("|" + "codigo_estudiante".center(30) + "|" + "dni_estudiante".center(30) + "|" + "puntajes_correctos".center(20) + "|")
+        print("+" + "-" * 30 + "+" + "-" * 30 + "+" + "-" * 20 + "+")
         
         for _, row in results_df.iterrows():
-            print("|" + str(row['codigo_estudiante']).center(30) + "|" + str(row['puntajes_correctos']).center(20) + "|")
+            print("|" + str(row['codigo_estudiante']).center(30) + "|" + str(row['dni_estudiante']).center(30) + "|" + str(row['puntajes_correctos']).center(20) + "|")
         
-        print("+" + "-" * 30 + "+" + "-" * 20 + "+")
+        print("+" + "-" * 30 + "+" + "-" * 30 + "+" + "-" * 20 + "+")

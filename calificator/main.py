@@ -2,17 +2,20 @@ import os
 import pandas as pd
 
 from config import CAREER_PATHS
-from data_loader import load_dbf_to_dataframe, extract_answers, load_answer_keys_from_dbf, get_career_path_for_exam_type
+from data_loader import load_dbf_to_dataframe, extract_answers, load_answer_keys_from_dbf, get_career_path_for_exam_type, load_student_identifications
 from score_calculator import calculate_score
 from report_generator import generate_pdf_report, display_results_table
 
-def grade_exams(respuestas_path, claves_path, output_path):
+def grade_exams(respuestas_path, claves_path, identifi_path, output_path):
     """Grade the exams and save the results"""
     # Load the student responses
     respuestas_df = load_dbf_to_dataframe(respuestas_path)
     
     # Load the answer keys from CLAVES.DBF
     answer_keys = load_answer_keys_from_dbf(claves_path)
+    
+    # Load student identifications from IDENTIFI.DBF
+    student_ids = load_student_identifications(identifi_path)
     
     # Create lists to store the results
     results = []
@@ -41,9 +44,13 @@ def grade_exams(respuestas_path, claves_path, output_path):
         # Find career based on the career_path
         best_career = career_scores.get(career_path, 0)
         
+        # Get student DNI if available
+        student_dni = student_ids.get(student_code, '')
+        
         # Add to results
         results.append({
             'codigo_estudiante': student_code,
+            'dni_estudiante': student_dni,
             'puntajes_correctos': best_career
         })
         
@@ -51,6 +58,7 @@ def grade_exams(respuestas_path, claves_path, output_path):
         if correct_answers:
             detailed_results.append({
                 'codigo_estudiante': student_code,
+                'dni_estudiante': student_dni,
                 'tipo_examen': exam_type,
                 'carrera_asignada': career_path,
                 'puntaje_matematica': section_scores['Matemática']['score'],
@@ -81,7 +89,7 @@ def grade_exams(respuestas_path, claves_path, output_path):
     # Generate PDF report with logo - use a timestamp in the filename to avoid permission issues
     timestamp = pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')
     pdf_path = os.path.join(os.path.dirname(output_path), f"resultados_{timestamp}.pdf")
-    generate_pdf_report(results_df, pdf_path)
+    generate_pdf_report(results_df, pdf_path, student_ids)
     
     print(f"Results saved to {output_path}")
     print(f"Detailed results saved to {detailed_path}")
@@ -99,13 +107,14 @@ def main():
     
     claves_path = os.path.join(script_dir, "data", "CLAVES.DBF")
     respuestas_path = os.path.join(script_dir, "data", "RESPUEST.DBF")
+    identifi_path = os.path.join(script_dir, "data", "IDENTIFI.DBF")
     output_path = os.path.join(script_dir, "output", "resultados.csv")
     
     # Create output directory if it doesn't exist
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     
     # Grade the exams
-    results_df = grade_exams(respuestas_path, claves_path, output_path)
+    results_df = grade_exams(respuestas_path, claves_path, identifi_path, output_path)
     
     # Display the results in the requested format
     display_results_table(results_df)

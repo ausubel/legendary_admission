@@ -51,6 +51,31 @@ def load_answer_keys_from_dbf(claves_path):
         print(f"Error loading answer keys from {claves_path}: {e}")
         return {}
 
+def load_student_identifications(identifi_path):
+    """
+    Load student identification data from IDENTIFI.DBF
+    Returns a dictionary mapping student codes to their DNIs
+    """
+    try:
+        # Load the identification data
+        identifi_df = load_dbf_to_dataframe(identifi_path)
+        
+        # Create a dictionary to map student codes to DNIs
+        student_ids = {}
+        
+        for _, row in identifi_df.iterrows():
+            student_code = row.get('LITHO', '')
+            student_dni = row.get('CODIGO', '')  # Changed from 'DNI' to 'CODIGO'
+            
+            if student_code and student_dni:
+                student_ids[student_code] = student_dni
+        
+        print(f"Loaded {len(student_ids)} student identifications")
+        return student_ids
+    except Exception as e:
+        print(f"Error loading student identifications from {identifi_path}: {e}")
+        return {}
+
 def get_career_path_for_exam_type(exam_type):
     """Get the career path for a given exam type"""
     # Ciencias (A)
