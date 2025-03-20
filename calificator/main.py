@@ -38,9 +38,6 @@ CAREER_PATHS = {
     "C": "Ingeniería"  # Engineering
 }
 
-# Exam types
-EXAM_TYPES = ['I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q']
-
 def load_dbf_to_dataframe(file_path):
     """Load a DBF file into a pandas DataFrame"""
     try:
@@ -64,13 +61,17 @@ def extract_answers(row):
     return answers
 
 def calculate_score(student_answers, correct_answers, career_path):
-    """Calculate the score for a student based on their answers and the correct answers
+    """
+    Calculate the score for a student based on their answers and the correct answers,
     using the formula: Puntaje = Ponderación × [Nº Respuestas Buenas - 1/4 (Nº Resp. Malas)]
     """
-    total_score = 0
-    section_scores = {}
+    # Count correct and incorrect answers for the entire exam
+    total_correct = 0
+    total_incorrect = 0
+    total_unanswered = 0
+    section_counts = {}
     
-    # Calculate score for each section based on the weights
+    # Count correct and incorrect answers for each section
     for section, details in EXAM_STRUCTURE.items():
         start_idx = details["start"]
         end_idx = details["end"]
@@ -92,26 +93,63 @@ def calculate_score(student_answers, correct_answers, career_path):
                 elif student_answers[i] != '':
                     incorrect_count += 1
         
-        # Apply the formula: Puntaje = Ponderación × [Nº Respuestas Buenas - 1/4 (Nº Resp. Malas)]
-        weight = details["weights"][career_path]
-        adjusted_score = correct_count - (0.25 * incorrect_count)
-        # Ensure the score is not negative
-        adjusted_score = max(0, adjusted_score)
-        section_score = adjusted_score * weight
-        total_score += section_score
-        
-        # Store section score for reporting
-        section_scores[section] = {
+        # Store section counts for reporting
+        section_counts[section] = {
             "correct": correct_count,
             "incorrect": incorrect_count,
             "unanswered": unanswered_count,
-            "total": end_idx - start_idx + 1,
-            "weight": weight,
-            "adjusted_score": adjusted_score,
-            "score": section_score
+            "weight": details["weights"][career_path]
         }
+        
+        # Accumulate totals
+        total_correct += correct_count
+        total_incorrect += incorrect_count
+        total_unanswered += unanswered_count
     
-    return total_score, section_scores
+    # Calculate the adjusted score using the formula for the entire exam
+    # Formula: [Nº Respuestas Buenas - 1/4 (Nº Resp. Malas)]
+    adjusted_total = total_correct - (0.25 * total_incorrect)
+    adjusted_total = max(0, adjusted_total)  # Ensure it's not negative
+    
+    # Calculate weighted scores for each career path
+    career_scores = {}
+    section_scores = {}
+    
+    for path in CAREER_PATHS.keys():
+        path_score = 0
+        
+        # Calculate section scores for this career path
+        for section, counts in section_counts.items():
+            # Get the weight for this section and career path
+            weight = EXAM_STRUCTURE[section]["weights"][path]
+            
+            # Apply the formula to the entire exam's adjusted score, then weight by section
+            section_proportion = counts["correct"] / total_correct if total_correct > 0 else 0
+            section_adjusted = adjusted_total * section_proportion
+            section_score = section_adjusted * weight
+            
+            # Add to the path score
+            path_score += section_score
+            
+            # Store section score if this is the student's career path
+            if path == career_path:
+                section_scores[section] = {
+                    "correct": counts["correct"],
+                    "incorrect": counts["incorrect"],
+                    "unanswered": counts["unanswered"],
+                    "weight": weight,
+                    "score": section_score
+                }
+        
+        # Store the career path score
+        career_scores[path] = path_score
+    
+    return career_scores, section_scores, {
+        "total_correct": total_correct,
+        "total_incorrect": total_incorrect,
+        "total_unanswered": total_unanswered,
+        "adjusted_total": adjusted_total
+    }
 
 def load_answer_keys_from_dbf(claves_path):
     """Load answer keys from the CLAVES.DBF file"""
@@ -142,15 +180,19 @@ def load_answer_keys_from_dbf(claves_path):
         return {}
 
 def get_career_path_for_exam_type(exam_type):
-    """Determine the career path based on the exam type"""
+    """Get the career path for a given exam type"""
+    # Ciencias (A)
     if exam_type in ['M', 'N']:
         return 'A'  # Ciencias
-    elif exam_type in ['O', 'X']:
+    # Humanidades (B)
+    elif exam_type in ['O', 'X', 'F', 'G', 'H', 'I', 'J', 'K', 'L']:
         return 'B'  # Humanidades
+    # Ingeniería (C)
     elif exam_type in ['Y', 'Z']:
         return 'C'  # Ingeniería
     else:
         # Default to a balanced approach if exam type is unknown
+        print(f"Warning: Unknown exam type '{exam_type}', defaulting to 'B' (Humanidades)")
         return 'B'
 
 def grade_exams(respuestas_path, claves_path, output_path):
@@ -189,26 +231,19 @@ def grade_exams(respuestas_path, claves_path, output_path):
         career_path = get_career_path_for_exam_type(exam_type)
         
         # Calculate scores for each career path
-        career_scores = {}
-        for path in ['A', 'B', 'C']:
-            if correct_answers:
-                score, _ = calculate_score(student_answers, correct_answers, path)
-                career_scores[path] = score
-            else:
-                career_scores[path] = 0
+        career_scores, section_scores, totals = calculate_score(student_answers, correct_answers, career_path)
         
-        # Find the best career path based on the scores
-        best_career = max(career_scores.items(), key=lambda x: x[1])
+        # Find career based on the career_path
+        best_career = career_scores.get(career_path, 0)
         
         # Add to results
         results.append({
             'codigo_estudiante': student_code,
-            'puntajes_correctos': best_career[1]
+            'puntajes_correctos': best_career
         })
         
         # Add to detailed results
         if correct_answers:
-            _, section_scores = calculate_score(student_answers, correct_answers, career_path)
             detailed_results.append({
                 'codigo_estudiante': student_code,
                 'tipo_examen': exam_type,
@@ -220,8 +255,8 @@ def grade_exams(respuestas_path, claves_path, output_path):
                 'puntaje_ciencias_carrera': career_scores['A'],
                 'puntaje_humanidades_carrera': career_scores['B'],
                 'puntaje_ingenieria_carrera': career_scores['C'],
-                'carrera_recomendada': CAREER_PATHS[best_career[0]],
-                'puntaje_total': best_career[1]
+                'area_postulada': CAREER_PATHS[career_path],
+                'puntaje_total': best_career
             })
         else:
             print(f"Warning: No answer key found for exam type {exam_type}")
@@ -307,17 +342,17 @@ def generate_pdf_report(results_df, output_path):
     try:
         detailed_df = pd.read_csv(detailed_results_path)
         print(f"Loaded {len(detailed_df)} records from detailed results")
-        print(f"Career recommendations found: {detailed_df['carrera_recomendada'].unique()}")
+        print(f"Areas postuladas encontradas: {detailed_df['area_postulada'].unique()}")
     except Exception as e:
         print(f"Warning: Could not load detailed results: {e}")
         detailed_df = None
     
     # If we have detailed results, create tables for each career area
-    if detailed_df is not None and 'carrera_recomendada' in detailed_df.columns:
+    if detailed_df is not None and 'area_postulada' in detailed_df.columns:
         # Group by career area
         for career_name in ['Ciencias', 'Humanidades', 'Ingeniería']:
             # Filter students for this career
-            career_students = detailed_df[detailed_df['carrera_recomendada'] == career_name]
+            career_students = detailed_df[detailed_df['area_postulada'] == career_name]
             
             if not career_students.empty:
                 print(f"Found {len(career_students)} students for {career_name}")
