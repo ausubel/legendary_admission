@@ -87,7 +87,3 @@ def get_career_path_for_exam_type(exam_type):
     # Ingeniería (C)
     elif exam_type in ['Y', 'Z']:
         return 'C'  # Ingeniería
-    else:
-        # Default to a balanced approach if exam type is unknown
-        print(f"Warning: Unknown exam type '{exam_type}', defaulting to 'B' (Humanidades)")
-        return 'B'

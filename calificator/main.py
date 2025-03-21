@@ -17,6 +17,7 @@ def grade_exams(respuestas_path, claves_path, identifi_path, output_path):
     # Load student identifications from IDENTIFI.DBF
     student_ids = load_student_identifications(identifi_path)
     
+    
     # Create lists to store the results
     results = []
     detailed_results = []
@@ -28,6 +29,10 @@ def grade_exams(respuestas_path, claves_path, identifi_path, output_path):
         
         # Get the exam type
         exam_type = row.get('TEMA', '')
+
+        if not exam_type:
+            print(f"Warning: No exam type found for student {student_code}")
+            continue
         
         # Extract student answers
         student_answers = extract_answers(row)
@@ -117,7 +122,7 @@ def main():
     results_df = grade_exams(respuestas_path, claves_path, identifi_path, output_path)
     
     # Display the results in the requested format
-    display_results_table(results_df)
+    # display_results_table(results_df)
 
 if __name__ == "__main__":
     main()
